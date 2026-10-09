@@ -8,20 +8,74 @@ possible warning signs, then pause and verify through an independent channel.
 The frontend works without API keys in **Demo mode — simulated analysis**.
 It does not transfer money, establish legitimacy, or persist submitted content.
 
-### Setup and run (PowerShell)
+### Run on this computer (Windows PowerShell)
 
-Run these commands from this repository's root (the inner `ScamBrake` folder):
+The local virtual environment and dependencies have already been installed.
+Open PowerShell and run:
+
+```powershell
+cd C:\Users\willi\Desktop\ScamBrake\ScamBrake
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+Open **http://localhost:8501** in your browser, or use the Local URL printed in
+the terminal if Streamlit chooses a different port. Keep that terminal open
+while using the app. Press **Ctrl+C** in the terminal to stop it.
+
+The application starts in demo mode without Gemini or ElevenLabs API keys.
+Select **Family emergency scam**, then **Analyze message**, then **Pause & Verify**
+to try the complete workflow. Use **Check another message** to reset it.
+
+### First-time setup on another computer
+
+Install **Python 3.12** and Git, then open PowerShell. Clone the repository if
+you do not already have it:
+
+```powershell
+git clone https://github.com/william100262/ScamBrake.git
+cd ScamBrake
+```
+
+If the repository is already downloaded, change into the folder containing
+`app.py` and `requirements.txt` instead. Create a virtual environment, install
+runtime dependencies, and launch:
 
 ```powershell
 py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+The `.venv` folder is local and is not included on GitHub. Each developer must
+create their own environment. These commands do not require activation or a
+PowerShell execution-policy change.
+
+If you prefer activating the environment, run:
+
+```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
 python -m streamlit run app.py
 ```
 
-If activation is restricted, use `.\.venv\Scripts\python.exe` instead of
-`python`; no execution-policy change is needed. `requirements.txt` contains
-runtime dependencies; `requirements-dev.txt` additionally installs pytest.
+### Common startup problems
+
+- **`py` is not recognized:** Install Python 3.12 with the Python launcher, or
+  use `python -m venv .venv` if `python --version` reports Python 3.12.
+- **`No module named streamlit`:** Run
+  `.\.venv\Scripts\python.exe -m pip install -r requirements.txt` from the repository root.
+- **`app.py` cannot be found:** Change into the folder containing `app.py`.
+  On this computer, that is the inner `ScamBrake` folder shown above.
+- **Activation scripts are blocked:** Use the direct `.venv\Scripts\python.exe`
+  commands above; activation is optional.
+- **Port 8501 is already in use:** Read the Local URL printed by Streamlit, or
+  explicitly choose another port:
+
+  ```powershell
+  .\.venv\Scripts\python.exe -m streamlit run app.py --server.port 8502
+  ```
+
+- **Live integration is unavailable:** To run the fictional demo again, set
+  `$env:SCAMBRAKE_DEMO_MODE = "true"` in PowerShell before launching the app.
 
 ### Demonstrating the workflow
 
@@ -116,9 +170,15 @@ API logic and credentials belong in that module. No voice service is implemented
 
 ### Tests
 
+From the repository root, install the development dependencies and run:
+
 ```powershell
-python -m pytest -q
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest -q
 ```
+
+With an activated environment, the equivalent test command is
+`python -m pytest -q`.
 
 Tests cover input limits, image formats/size/dimensions, all four concern levels,
 normalization, live adapters/failures, demo controls, all three verification answers,
