@@ -33,9 +33,11 @@ def submit_analysis():
                 raise InputError("Upload a valid screenshot before analyzing it.")
             kwargs = {"text": validate_text(st.session_state.ocr_text)}
         with st.spinner("Reviewing your payment request..."):
-            analysis = integration.analyze_input(**kwargs, demo=st.session_state.demo_mode)
+            # analyze_with_interventions runs a single analysis and also returns the
+            # four-card bundle built from the ORIGINAL analyzer output (temporary demo).
+            analysis, cards = integration.analyze_with_interventions(**kwargs, demo=st.session_state.demo_mode)
             intervention = integration.build_intervention(analysis, demo=st.session_state.demo_mode)
-        st.session_state.update(analysis=analysis, intervention=intervention, stage="results")
+        st.session_state.update(analysis=analysis, intervention=intervention, interventions=cards, stage="results")
     except (InputError, integration.ServiceError) as exc:
         st.session_state.error = str(exc)
     except Exception:
@@ -159,9 +161,79 @@ def results():
             st.warning(st.session_state.audio_error)
         if st.session_state.audio:
             st.audio(st.session_state.audio, format="audio/mpeg", autoplay=False)
+    intervention_cards()
     a, b = st.columns([2, 1])
     a.button("Pause & Verify", type="primary", icon=":material/shield:", width="stretch", on_click=state.change_stage, args=("verify",))
     b.button("Check another message", width="stretch", on_click=state.start_over)
+
+
+# --- TEMPORARY four-card intervention demo -------------------------------------
+# A minimal preview of the intervention backend, wired to real build_interventions
+# output. Not Denise's final design; kept self-contained for easy later removal.
+INTERVENTION_CARDS = [("questioning", "Questioning"), ("authority", "Authority"),
+                      ("social_influence", "Social Influence"), ("diversion", "Diversion")]
+
+
+def _escape_markdown(text):
+    # Native checkbox/markdown labels interpret Markdown; escape untrusted punctuation.
+    return re.sub(r"([\\`*_{}\[\]()<>#+.!|~-])", r"\\\1", text)
+
+
+def intervention_cards():
+    cards = st.session_state.interventions
+    strategies = cards.get("interventions") if isinstance(cards, dict) else None
+    if not strategies:
+        return
+    st.divider()
+    st.caption("TEMPORARY DEMO · FOUR INTERVENTION CARDS · NOT FINAL DESIGN")
+    st.subheader("Intervention strategies")
+    st.caption("A temporary preview of the intervention backend. Denise's final frontend will replace this layout and styling.")
+    columns = st.columns(2)
+    for position, (key, title) in enumerate(INTERVENTION_CARDS):
+        card = strategies.get(key)
+        if not isinstance(card, dict):
+            continue
+        with columns[position % 2], st.container(border=True):
+            _intervention_card(key, title, card)
+
+
+def _intervention_card(key, fallback_title, card):
+    st.caption(fallback_title.upper())
+    st.text(card.get("title") or fallback_title)
+    st.text(card.get("message") or "")
+    if key == "questioning":
+        options = [opt.get("label", "") for opt in card.get("options", []) if isinstance(opt, dict)]
+        if options:
+            # Mirror the Pause & Verify pattern: persist the choice across reruns.
+            st.session_state.intervention_answer_widget = st.session_state.intervention_answer
+            st.radio("Your response", options, index=None, key="intervention_answer_widget",
+                     on_change=state.intervention_answer_changed)
+    elif key == "authority":
+        source = card.get("source") if isinstance(card.get("source"), dict) else {}
+        name, label, url = source.get("name"), source.get("label"), source.get("url")
+        if url:
+            st.link_button(label or name or "View official guidance", url, width="stretch")
+            if name:
+                st.caption(f"Source: {name}")
+        else:
+            st.caption("No verified official source is available for this scenario.")
+    elif key == "social_influence":
+        matched = [sig for sig in card.get("matched_signals", []) if isinstance(sig, str)]
+        if matched:
+            st.caption("Matched signals")
+            st.text(", ".join(matched))
+        else:
+            st.caption("No specific scam-pattern signals were matched.")
+    elif key == "diversion":
+        actions = [act for act in card.get("actions", []) if isinstance(act, dict)]
+        if actions:
+            st.caption("Verification checklist")
+            for action in actions:
+                action_id = str(action.get("id", ""))
+                widget_key = f"icheck_{action_id}"
+                st.session_state[widget_key] = st.session_state.intervention_checks.get(action_id, False)
+                st.checkbox(_escape_markdown(action.get("label", "")), key=widget_key,
+                            on_change=state.intervention_check_changed, args=(action_id,))
 
 
 def verification():

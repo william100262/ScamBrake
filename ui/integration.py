@@ -98,15 +98,19 @@ def load_function(module_env, default_module, function_name):
         raise ServiceError(f"Live {default_module} integration is unavailable. Ask the app owner to connect it, then retry.") from None
 
 
-def analyze_input(text="", image_bytes=None, mime_type=None, *, demo=True):
-    if image_bytes is not None:
-        raise ServiceError("Extract and review the screenshot text before analyzing it.")
+def _normalized_and_raw(text, demo):
+    """Analyze once; return (normalized_analysis, original_analyzer_output).
+
+    The second value keeps the analyzer's seven-field shape (including `scenario`
+    and typed signals), which normalize_analysis() drops. The temporary
+    intervention demo needs it for scenario-specific cards. Only one analysis runs.
+    """
     if demo:
         try:
-            raw = mock_data.analyze_input(text=text, image_bytes=image_bytes, mime_type=mime_type)
+            raw = mock_data.analyze_input(text=text)
         except Exception:
             raise ServiceError("We couldn't analyze your request right now. Please retry in a moment.") from None
-        return normalize_analysis(raw, source_text=text if image_bytes is None else None)
+        return normalize_analysis(raw, source_text=text), mock_data.analyzer_output(text)
 
     # Live text mode -> call the real analyzer backend (analyzer.analyze_input(text))
     # and adapt its seven-field output to the frontend shape.
@@ -115,7 +119,30 @@ def analyze_input(text="", image_bytes=None, mime_type=None, *, demo=True):
         raw = analyze(text)
     except Exception:
         raise ServiceError("We couldn't analyze your request right now. Please retry in a moment.") from None
-    return normalize_analysis(_adapt_analyzer_output(raw), source_text=text)
+    return normalize_analysis(_adapt_analyzer_output(raw), source_text=text), raw
+
+
+def analyze_input(text="", image_bytes=None, mime_type=None, *, demo=True):
+    if image_bytes is not None:
+        raise ServiceError("Extract and review the screenshot text before analyzing it.")
+    return _normalized_and_raw(text, demo)[0]
+
+
+def analyze_with_interventions(text="", *, demo=True):
+    """TEMPORARY demo helper: one analysis -> (normalized_analysis, four_card_bundle).
+
+    Cards are built from the ORIGINAL analyzer output (preserving scenario and
+    signals), never the normalized output. This is separate from analyze_input so
+    Denise's final integration and the existing Pause & Verify path stay untouched.
+    The bundle is None if card generation fails, so the core analysis still shows.
+    """
+    normalized, raw = _normalized_and_raw(text, demo)
+    try:
+        from intervention import build_interventions
+        cards = build_interventions(raw)
+    except Exception:
+        cards = None
+    return normalized, cards
 
 
 def build_intervention(analysis, *, demo=True):
