@@ -180,6 +180,25 @@ From the repository root, install the development dependencies and run:
 With an activated environment, the equivalent test command is
 `python -m pytest -q`.
 
+### Evaluate the analyzer
+
+`evaluate.py` is a standalone command-line evaluator for labeled fictional CSV
+cases. It defaults to mock mode and the development split, without API calls.
+If your team has not created `data/cases.csv`, explicitly create a small starter
+dataset first; this command never overwrites an existing file:
+
+```powershell
+.\.venv\Scripts\python.exe evaluate.py --create-template data/cases.csv
+.\.venv\Scripts\python.exe evaluate.py --mode mock --data data/cases.csv --split dev
+```
+
+For the real analyzer, use `--mode live`; optionally add `--limit 5` to control
+initial API usage. The tool reports assessed-only metrics, unknowns, failures,
+coverage, and evidence/detail checks, then saves JSON and CSV files in `reports/`.
+Mock reports are explicitly labeled simulations, not Gemini performance.
+See [the evaluation guide](docs/EVALUATION.md) for the dataset schema, integration,
+held-out test guidance, metrics, exit codes, and additional commands.
+
 Tests cover input limits, image formats/size/dimensions, all four concern levels,
 normalization, live adapters/failures, demo controls, all three verification answers,
 checklist persistence, resets, retry behavior, and plain-text rendering of untrusted
