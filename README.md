@@ -343,3 +343,7 @@ the preview. Verify no analysis occurs until you type a message and confirm it.
 The original two images are not included in the repository; real-engine tests use
 synthetic bank alerts, short messages, generated noise, and attributed photographs
 in `tests/fixtures/ocr`. External AI requests remain mocked.
+
+## Intervention backend
+
+The deterministic four-strategy API and legacy Pause & Verify adapter are documented in [docs/intervention_contract.md](docs/intervention_contract.md). Run the fictional examples with: python examples/intervention_examples.py.
