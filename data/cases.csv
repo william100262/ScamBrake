@@ -1,7 +1,0 @@
-id,text,ground_truth,split,expected_signals,expected_amount,expected_payment_method,scenario
-dev01,"Hey, it's Dad. My phone broke and I'm using a new number. I urgently need you to send $500 through Zelle. Please don't call me. Just send it now.",scam,dev,impersonation|urgency|discouraging_verification,$500,Zelle,family impersonation
-dev02,"Hi Alex, just a reminder that your $75 invoice for tomorrow's tutoring session is due. You can use our usual payment method. Thanks!",legitimate,dev,,$75,,tutoring reminder
-dev03,"Hi, this is the event organizer. Please send the $40 registration fee by bank transfer today. We have changed our payment details.",scam,dev,payment_method,$40,Bank transfer,fictional altered recipient details
-dev04,Your $20 book club contribution is due next week. Please bring it to our usual meeting.,legitimate,dev,,$20,,book club reminder
-test01,This is your bank. Transfer $900 to our recovery account now. Keep this secret.,scam,test,impersonation|urgency|secrecy,$900,,fictional bank impersonation
-test02,The $30 pottery class fee is due Friday. Please use the payment method listed in your existing enrollment receipt.,legitimate,test,,$30,,class reminder

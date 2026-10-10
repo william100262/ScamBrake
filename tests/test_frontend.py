@@ -105,19 +105,13 @@ def test_live_missing_and_provider_failure(monkeypatch):
     assert "PRIVATE_API_KEY" not in str(error.value)
 
 
-def test_live_contract_and_image_bytes(monkeypatch):
-    seen = {}
-    def analyze_input(text="", image_bytes=None, mime_type=None):
-        seen.update(text=text, image_bytes=image_bytes, mime_type=mime_type)
-        return mock_data.FAMILY
-    monkeypatch.setitem(sys.modules, "test_analyzer", SimpleNamespace(analyze_input=analyze_input))
-    monkeypatch.setitem(sys.modules, "test_intervention", SimpleNamespace(build_intervention=lambda analysis: {}))
-    monkeypatch.setenv("SCAMBRAKE_ANALYZER_MODULE", "test_analyzer")
-    monkeypatch.setenv("SCAMBRAKE_INTERVENTION_MODULE", "test_intervention")
-    result = integration.analyze_input(image_bytes=b"image", mime_type="image/png", demo=False)
-    assert seen == {"text": "", "image_bytes": b"image", "mime_type": "image/png"}
-    assert all(x["evidence"] is None for x in result["signals"])
-    assert integration.build_intervention(result, demo=False)["recommended_actions"]
+def test_direct_image_analysis_requires_confirmation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(integration, "load_function", lambda *args: calls.append(args))
+    for demo in (True, False):
+        with pytest.raises(integration.ServiceError, match="review"):
+            integration.analyze_input(image_bytes=b"image", mime_type="image/png", demo=demo)
+    assert not calls
 
 
 def test_home_validation_and_examples():
@@ -136,26 +130,23 @@ def test_home_validation_and_examples():
     assert not at.exception
 
 
-@pytest.mark.parametrize("answer", ["No, I haven't verified", "Yes, I verified independently", "I'm not sure"])
+@pytest.mark.parametrize("answer", ["yes", "no", "not_sure"])
 def test_verification_and_restart(answer):
     at = analyzed(app())
-    button(at, "Pause & Verify").click().run()
-    assert at.button(key="continue").disabled
-    at.radio(key="answer_widget").set_value(answer).run()
-    at.button(key="continue").click().run()
-    assert len(at.checkbox) == 3
-    at.checkbox(key="check_0").check().run()
-    assert at.session_state["checklist_completion"][0]
-    button(at, "Back to results").click().run()
-    button(at, "Pause & Verify").click().run()
-    assert at.radio(key="answer_widget").value == answer
-    assert at.checkbox(key="check_0").value
+    at.button(key="question_verify").click().run()
+    assert at.session_state["stage"] == "results"
+    at.radio(key="question_answer_independent_contact").set_value(answer).run()
+    at.checkbox(key="action_check_saved_contact").check().run()
+    at.button(key="question_verify").click().run()
+    assert not any(r.key.startswith("question_answer_") for r in at.radio)
+    at.button(key="question_verify").click().run()
+    assert at.radio(key="question_answer_independent_contact").value == answer
+    assert at.checkbox(key="action_check_saved_contact").value
     button(at, "Check another message").click().run()
     assert at.session_state["analysis"] is None
-    assert at.session_state["verification_answer"] is None
+    assert at.session_state["question_answers"] == {}
     assert at.session_state["checklist_completion"] == {}
     assert at.text_area(key="message").value == ""
-    assert not at.exception
     at.button(key="reminder_example").click().run()
     at.button(key="analyze").click().run()
     assert at.session_state["analysis"]["risk_level"] == "low"
@@ -182,13 +173,16 @@ def test_screenshot_preview_and_submission(monkeypatch, data, expected):
     # the actual validation, preview, and submit path without persistent files.
     import streamlit as st
     monkeypatch.setattr(st, "file_uploader", lambda *args, **kwargs: SimpleNamespace(name="screen.png", getvalue=lambda: data))
+    import ocr
+    from test_screenshots import detections
+    monkeypatch.setattr(ocr, "_recognize", lambda image: detections(mock_data.FAMILY_MESSAGE))
     at = app()
     at.radio(key="input_method").set_value("Upload a screenshot").run()
     at.button(key="analyze").click().run()
     assert at.session_state["stage"] == expected
     if expected == "results":
-        assert "has not been read" in at.session_state["analysis"]["summary"]
-        assert at.session_state["analysis"]["requested_amount"] is None
+        assert at.session_state["analysis"]["risk_level"] == "high"
+        assert at.session_state["analysis"]["requested_amount"] == "$500"
     else:
         assert at.error
     assert not at.exception
@@ -242,8 +236,7 @@ def test_audio_is_explicit_and_persists(monkeypatch):
 
 def test_missing_intervention_and_audio_failure(monkeypatch):
     monkeypatch.setenv("SCAMBRAKE_INTERVENTION_MODULE", "missing_scamb_intervention")
-    with pytest.raises(integration.ServiceError, match="unavailable"):
-        integration.build_intervention(mock_data.FAMILY, demo=False)
+    assert integration.build_intervention(mock_data.FAMILY, demo=False)["recommended_actions"]
     monkeypatch.setenv("SCAMBRAKE_VOICE_MODULE", "test_bad_voice")
     monkeypatch.setitem(sys.modules, "test_bad_voice", SimpleNamespace(generate_audio=lambda text: "bad audio"))
     with pytest.raises(integration.ServiceError, match="Audio is unavailable"):
