@@ -120,16 +120,17 @@ def _coerce(data: dict, text: str) -> dict:
     result = _empty_result("")
 
     scenario = data.get("scenario")
-    if scenario in SCENARIOS:
+    if isinstance(scenario, str) and scenario in SCENARIOS:
         result["scenario"] = scenario
 
     risk = data.get("risk_level")
-    if risk in RISK_LEVELS:
+    if isinstance(risk, str) and risk in RISK_LEVELS:
         result["risk_level"] = risk
 
     # Only keep signals whose evidence is a verbatim substring of the message.
     signals = []
-    for sig in data.get("signals") or []:
+    entries = data.get("signals")
+    for sig in entries if isinstance(entries, list) else []:
         if not isinstance(sig, dict):
             continue
         evidence = sig.get("evidence")
@@ -247,7 +248,7 @@ def _call_mistral(prompt: str) -> str:
         try:
             response = client.chat.complete(
                 model=_mistral_model(),
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "system", "content": INSTRUCTIONS}, {"role": "user", "content": prompt}],
                 temperature=0,
                 max_tokens=MAX_OUTPUT_TOKENS,
                 response_format={"type": "json_object"},
@@ -305,6 +306,7 @@ def _call_lmstudio(prompt: str) -> str:
     request_body = {
         "model": LMSTUDIO_MODEL,
         "input": prompt,
+        "system_prompt": INSTRUCTIONS,
         "reasoning": "off",
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "stream": False,
@@ -320,13 +322,12 @@ def _call_lmstudio(prompt: str) -> str:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             raw_payload = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", "replace") if hasattr(exc, "read") else ""
         raise ProviderError(
-            f"The LM Studio server returned HTTP {exc.code}: {detail or exc.reason}"
-        ) from exc
+            f"The LM Studio server returned HTTP {exc.code}. Please try again."
+        ) from None
     except (urllib.error.URLError, TimeoutError) as exc:
         raise ProviderError(
-            f"Could not reach LM Studio at {LMSTUDIO_API_URL}: {exc}"
+            "Could not reach LM Studio. Check that the local server is running, then retry."
         ) from exc
 
     try:
@@ -360,7 +361,9 @@ def analyze_input(text: str) -> dict:
             "The analysis service is unavailable right now. Please try again."
         )
 
-    content = (content or "").strip()
+    if not isinstance(content, str):
+        return _empty_result("The model returned an unreadable response. Please try again.")
+    content = content.strip()
     if not content:
         return _empty_result("The model returned an empty response.")
 

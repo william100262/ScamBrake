@@ -25,8 +25,8 @@ def validate_text(text: str) -> str:
 
 def validate_image(name: str, data: bytes) -> dict:
     suffix = Path(name).suffix.lower()
-    if suffix not in {".png", ".jpg", ".jpeg"}:
-        raise InputError("Choose a PNG, JPG, or JPEG screenshot.")
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
+        raise InputError("Choose a PNG, JPG, JPEG, or WebP screenshot.")
     if not data:
         raise InputError("This file is empty. Please choose another screenshot.")
     if len(data) > MAX_IMAGE_BYTES:
@@ -35,9 +35,11 @@ def validate_image(name: str, data: bytes) -> dict:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(data)) as img:
-                expected = "PNG" if suffix == ".png" else "JPEG"
+                expected = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP"}[suffix]
                 if img.format != expected:
-                    raise InputError("The image format does not match its extension. Export it as PNG or JPEG.")
+                    raise InputError("The image format does not match its extension. Export it as PNG, JPEG, or WebP.")
+                if getattr(img, "n_frames", 1) != 1:
+                    raise InputError("Choose a still screenshot, not an animated image.")
                 width, height = img.size
                 if min(width, height) < 32 or max(width, height) > MAX_IMAGE_SIDE or width * height > MAX_IMAGE_PIXELS:
                     raise InputError("Choose a readable screenshot with sides between 32 and 10,000 pixels and at most 20 million pixels.")
@@ -48,5 +50,5 @@ def validate_image(name: str, data: bytes) -> dict:
     except InputError:
         raise
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
-        raise InputError("We couldn't read this image. Please upload a valid PNG or JPEG screenshot.") from None
-    return {"name": name, "bytes": data, "mime_type": "image/png" if suffix == ".png" else "image/jpeg", "width": width, "height": height}
+        raise InputError("We couldn't read this image. Please upload a valid PNG, JPEG, or WebP screenshot.") from None
+    return {"name": name, "bytes": data, "mime_type": {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}[expected], "width": width, "height": height}

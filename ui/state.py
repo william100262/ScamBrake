@@ -4,7 +4,7 @@ import streamlit as st
 
 def initialize(demo):
     defaults = {"stage": "submit", "input_method": "Paste a message", "message": "", "upload_generation": 0,
-                "uploaded_image": None, "analysis": None, "intervention": None, "verification_answer": None,
+                "uploaded_image": None, "ocr_digest": None, "ocr_text": "", "ocr_error": None, "ocr_valid": False, "analysis": None, "intervention": None, "verification_answer": None,
                 "continued_answer": None, "demo_mode": demo, "error": None, "busy": False,
                 "show_how": False, "audio": None, "audio_error": None, "checklist_completion": {}}
     for key, value in defaults.items():
@@ -23,16 +23,25 @@ def clear_results():
                             continued_answer=None, error=None, busy=False, audio=None, audio_error=None, checklist_completion={})
 
 
+def reset_screenshot():
+    st.session_state.update(uploaded_image=None, ocr_digest=None, ocr_text="", ocr_error=None, ocr_valid=False)
+
+
 def input_changed():
     clear_results()
-    st.session_state.uploaded_image = None
+    reset_screenshot()
+
+
+def method_changed():
+    input_changed()
+    st.session_state.upload_generation += 1
 
 
 def load_example(message):
     clear_results()
     st.session_state.message = message
     st.session_state.input_method = "Paste a message"
-    st.session_state.uploaded_image = None
+    reset_screenshot()
     st.session_state.upload_generation += 1
 
 

@@ -1,9 +1,11 @@
 """Native accessible controls; untrusted strings are displayed as plain text."""
 import re
+from hashlib import sha256
 import streamlit as st
 from . import integration, state
 from .mock_data import FAMILY_MESSAGE, REMINDER_MESSAGE
-from .validation import validate_text, validate_image, InputError
+from .validation import validate_text, InputError
+from ocr import OCRError, UNREADABLE_MESSAGE
 
 PRIVACY = "Remove sensitive personal information before submitting. Your content will be sent to an AI service for analysis. ScamBrake cannot guarantee that a payment request is legitimate."
 DISCLAIMER = "ScamBrake identifies possible warning signs and suggests verification steps. Its analysis is not a guarantee of fraud or legitimacy."
@@ -27,10 +29,9 @@ def submit_analysis():
         if st.session_state.input_method == "Paste a message":
             kwargs = {"text": validate_text(st.session_state.message)}
         else:
-            image = st.session_state.uploaded_image
-            if image is None:
+            if not st.session_state.ocr_valid:
                 raise InputError("Upload a valid screenshot before analyzing it.")
-            kwargs = {"image_bytes": image["bytes"], "mime_type": image["mime_type"]}
+            kwargs = {"text": validate_text(st.session_state.ocr_text)}
         with st.spinner("Reviewing your payment request..."):
             analysis = integration.analyze_input(**kwargs, demo=st.session_state.demo_mode)
             intervention = integration.build_intervention(analysis, demo=st.session_state.demo_mode)
@@ -50,7 +51,7 @@ def submission():
         st.subheader("Check a payment request")
         st.caption("A moment to check. A better-informed decision.")
         st.radio("Input method", ["Paste a message", "Upload a screenshot"], horizontal=True,
-                 key="input_method", on_change=state.input_changed)
+                 key="input_method", on_change=state.method_changed)
         if st.session_state.input_method == "Paste a message":
             st.text_area("Payment request", key="message", height=185,
                          placeholder="Paste the text message, email, or payment request you received...",
@@ -61,19 +62,41 @@ def submission():
                 st.error("Please shorten your message to 5,000 characters or fewer.")
             label = "Analyze message"
         else:
-            upload = st.file_uploader("Upload a screenshot of the payment request", type=["png", "jpg", "jpeg"],
+            upload = st.file_uploader("Upload a screenshot of the payment request", type=["png", "jpg", "jpeg", "webp"],
                                       accept_multiple_files=False, key=f"upload_{st.session_state.upload_generation}",
-                                      on_change=state.input_changed, help="PNG or JPEG · up to 5 MB. Use the × beside the filename to remove it.")
-            if upload is not None:
-                try:
-                    image = validate_image(upload.name, upload.getvalue())
-                    st.session_state.uploaded_image = image
-                    st.image(image["bytes"], caption="Screenshot preview", width="stretch")
-                    st.text(image["name"])
-                except InputError as exc:
-                    st.session_state.uploaded_image = None
-                    st.error(str(exc))
-            label = "Analyze screenshot"
+                                      on_change=state.input_changed, help="PNG, JPEG, or WebP · up to 5 MB. Use the × beside the filename to remove it.")
+            if upload is None:
+                state.reset_screenshot()
+            else:
+                data = upload.getvalue()
+                digest = sha256(data).hexdigest() + upload.name
+                retry = st.button("Retry text extraction", key="retry_ocr") if st.session_state.ocr_error else False
+                if digest != st.session_state.ocr_digest or retry:
+                    state.clear_results()
+                    state.reset_screenshot()
+                    st.session_state.ocr_digest = digest
+                    try:
+                        with st.spinner("Reading screenshot text locally..."):
+                            st.session_state.ocr_text = integration.extract_screenshot(data, upload.name)
+                        st.session_state.ocr_valid = True
+                        if not st.session_state.ocr_text:
+                            st.session_state.ocr_error = UNREADABLE_MESSAGE
+                    except OCRError as exc:
+                        st.session_state.ocr_valid = True
+                        st.session_state.ocr_error = str(exc)
+                    except InputError as exc:
+                        st.session_state.ocr_error = str(exc)
+                    except Exception:
+                        st.session_state.ocr_error = "We couldn't read this screenshot. Try again or paste its text instead."
+                if st.session_state.ocr_valid:
+                    st.image(data, caption="Screenshot preview", width="stretch")
+                    st.caption("Text extraction stays on this computer. Low-confidence words may be omitted. Compare the full message, including names, amounts, payment methods, and URLs, before confirming.")
+                    st.text_area("Review and correct extracted text", key="ocr_text", height=220,
+                                 on_change=state.clear_results)
+                    st.caption(f"{len(st.session_state.ocr_text):,} / 5,000 characters · Shorten longer text before analysis.")
+                if st.session_state.ocr_error:
+                    st.warning(st.session_state.ocr_error)
+            label = "Analyze confirmed text"
         if st.session_state.error:
             st.error(st.session_state.error)
         if st.button("Retry analysis" if st.session_state.error else label, type="primary", width="stretch",

@@ -2,3 +2,4 @@ streamlit>=1.50,<2
 Pillow>=11,<13
 mistralai>=1.2,<2
 python-dotenv>=1,<2
+pytesseract==0.3.13

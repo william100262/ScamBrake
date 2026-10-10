@@ -4,6 +4,12 @@ from os import environ
 from . import mock_data
 
 
+def extract_screenshot(data, name):
+    """Local OCR only: never call an AI provider or cache private image content."""
+    from ocr import extract_text
+    return extract_text(data, name)
+
+
 class ServiceError(RuntimeError):
     """Contains only safe public messages, never provider exception text."""
 
@@ -37,8 +43,7 @@ def normalize_analysis(raw, source_text=None):
         if not title or not explanation:
             continue
         evidence = clean_text(item.get("evidence")) or None
-        # Text-mode quotes must appear in the actual submitted text. For images,
-        # omit quotes until the service contract includes independently usable OCR.
+        # Confirmed screenshot text and pasted text are equally authoritative.
         if source_text is None or (evidence and evidence not in source_text):
             evidence = None
         signals.append({"type": clean_text(item.get("type"), "other", 100), "title": title, "explanation": explanation, "evidence": evidence})
@@ -94,23 +99,14 @@ def load_function(module_env, default_module, function_name):
 
 
 def analyze_input(text="", image_bytes=None, mime_type=None, *, demo=True):
+    if image_bytes is not None:
+        raise ServiceError("Extract and review the screenshot text before analyzing it.")
     if demo:
         try:
             raw = mock_data.analyze_input(text=text, image_bytes=image_bytes, mime_type=mime_type)
         except Exception:
             raise ServiceError("We couldn't analyze your request right now. Please retry in a moment.") from None
         return normalize_analysis(raw, source_text=text if image_bytes is None else None)
-
-    # Live mode. Screenshot handling is unchanged: it is delegated to a configured
-    # provider, and the default text analyzer has no OCR, so images are not
-    # silently treated as if their text had been read.
-    if image_bytes is not None:
-        provider = load_function("SCAMBRAKE_ANALYZER_MODULE", "analyzer", "analyze_input")
-        try:
-            raw = provider(text=text, image_bytes=image_bytes, mime_type=mime_type)
-        except Exception:
-            raise ServiceError("We couldn't analyze your request right now. Please retry in a moment.") from None
-        return normalize_analysis(raw, source_text=None)
 
     # Live text mode -> call the real analyzer backend (analyzer.analyze_input(text))
     # and adapt its seven-field output to the frontend shape.

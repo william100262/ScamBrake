@@ -1,9 +1,12 @@
 """Run from the repository root: python -m streamlit run app.py."""
+from dotenv import load_dotenv
 import streamlit as st
 from ui import components, integration, state, styles
 
 st.set_page_config(page_title="ScamBrake · Pause before you pay", page_icon="🛡️", layout="wide")
 styles.apply_styles()
+# Load configuration before mode selection or the first local OCR request.
+load_dotenv()
 try:
     demo = integration.demo_enabled()
 except integration.ServiceError as exc:
