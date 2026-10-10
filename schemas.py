@@ -31,3 +31,10 @@ def validate_analysis(analysis):
         return False
 
     return True 
+
+example = {
+    "scenario": "family_emergency",
+    "risk_level": "extreme"
+}
+
+print(validate_analysis(example))
