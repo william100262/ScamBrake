@@ -1,9 +1,11 @@
 """Frontend-independent intervention API and the existing Pause & Verify adapter."""
 from interventions.context import normalize
 from interventions.contract import validate_bundle, validate_strategy
+from interventions.questionnaire import build_questionnaire, review_questionnaire
 from interventions.registry import STRATEGIES, build_strategy as _build_strategy
 
-__all__ = ["build_interventions", "build_strategy", "build_intervention"]
+__all__ = ["build_interventions", "build_strategy", "build_intervention",
+           "build_questionnaire", "review_questionnaire"]
 
 
 def build_interventions(analysis: dict) -> dict:

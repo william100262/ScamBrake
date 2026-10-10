@@ -154,6 +154,142 @@ Denise should retain the raw analyzer result and pass it directly to
 analysis. Mapping a normalized result's risk back does not recover its scenario.
 No frontend files or analyzer contracts were modified in this implementation.
 
+## Personalized verification questionnaire
+
+An additive, interactive layer on top of the same analysis. Two public functions,
+both deterministic, synchronous, local, offline, and non-mutating. They add no AI
+calls and do not change `build_interventions()` or any strategy schema.
+
+```python
+from intervention import build_questionnaire, review_questionnaire
+
+questionnaire = build_questionnaire(analysis)        # 3-5 contextual questions
+feedback = review_questionnaire(questionnaire, answers)  # structured review
+```
+
+Pass the original seven-field `analyzer.analyze_input(confirmed_text)` result, exactly
+as for `build_interventions()`. Do not pass the UI-normalized analysis, which drops
+`scenario`.
+
+### `build_questionnaire(analysis)`
+
+Selects 3-5 fixed verification questions personalized by scenario, warning signals,
+and the presence of grounded details. Question wording is fixed and never embeds
+submitted text; personalization is expressed only as *which* questions appear.
+
+Output (UI-agnostic, JSON-serializable):
+
+```text
+{
+  "questions": [
+    {"id": string, "text": string, "explanation": string}
+  ]
+}
+```
+
+- `id` — stable identifier from a controlled registry; unique within a questionnaire.
+- `text` — the question to display.
+- `explanation` — one sentence on why it matters (always present).
+
+Answer-interpretation metadata is intentionally **not** in the output; it lives in an
+internal registry keyed on `id`, so a forged or malformed questionnaire cannot dictate
+conclusions. Unknown IDs are ignored.
+
+### `review_questionnaire(questionnaire, answers)`
+
+`answers` is a dict keyed by question `id`, each value one of `"yes"`, `"no"`,
+`"unsure"` (case-insensitive, trimmed). Returns:
+
+```text
+{
+  "headline": string,
+  "summary": string,
+  "concerns": [string],
+  "recommended_actions": [string]
+}
+```
+
+Interpretation is **question-aware**, not a yes/no count and not a second fraud score:
+
+- Verification questions ("Have you checked ...?"): **no** is a verification gap,
+  **yes** is a reported step (never treated as proof), **unsure** is unresolved.
+- Warning questions ("Are you being pressured ...?"): **yes** is a warning sign,
+  **no** is reassuring, **unsure** is unresolved.
+
+So the same `"yes"` is reassuring for one question and concerning for another.
+
+**Incomplete / malformed answers.** Partial answers are supported. A missing or
+invalid answer (unknown value, wrong type) is treated as *unresolved*, never as fraud.
+`answers` that is not a dict is treated as empty. Answer keys not in the registry are
+ignored. If no in-scope questions can be identified, a neutral, safe review is returned
+whose only recommended action is the standing "do not send money ..." step.
+
+The review never concludes that a request is "safe", "legitimate", "verified", or
+"confirmed fraud" from answers alone; `recommended_actions` always ends with an
+independent-verification reminder, and `concerns` is never empty (an all-clear set
+still returns a caution that the answers do not prove the request is genuine).
+
+### Grounded government/agency subtype
+
+The analyzer has no IRS/government scenario enum, and none is added. When a message is
+concerning (medium/high risk) and a government/agency indicator (e.g. IRS, Social
+Security, immigration, "arrest"/"warrant", "back taxes") appears in the structured
+`claimed_sender` field or in signal evidence — never the free-form explanation — and the
+route is not clearly family or invoice, government-tailored questions are selected
+(independently checking official notices/records, confirming instructions via an
+independently found official website, and threats of penalties/arrest). It never
+recommends "Call the IRS" or assumes a particular agency channel, and a plain bank or
+generic message is not treated as government impersonation.
+
+### Example — family emergency
+
+Questionnaire (abridged):
+
+```json
+{
+  "questions": [
+    {"id": "contact_relative_known_number", "text": "Have you reached the family member directly using a phone number you already had saved for them?", "explanation": "Reaching the relative on a known number helps confirm who is really asking."},
+    {"id": "secrecy_pressure", "text": "Are you being asked to keep this request secret?", "explanation": "Requests for secrecy can prevent independent checks."},
+    {"id": "unusual_payment_method", "text": "Are you being asked to pay in an unusual way, such as gift cards, a wire transfer, or cryptocurrency?", "explanation": "Hard-to-reverse payment methods are common in scams."}
+  ]
+}
+```
+
+Review for `{"contact_relative_known_number": "no", "secrecy_pressure": "yes", "unusual_payment_method": "yes"}`:
+
+```json
+{
+  "headline": "Important verification steps remain",
+  "summary": "You reported that you have not reached the relative on a previously saved number, the message pressures you to keep the request secret, and you are being asked to pay in an unusual, hard-to-reverse way.",
+  "concerns": [
+    "You have not yet reached the relative using a number you already had saved.",
+    "Secrecy pressure is a reason to pause before acting.",
+    "An unusual, hard-to-reverse payment method is a common scam indicator."
+  ],
+  "recommended_actions": [
+    "Call the family member using a phone number you already had saved, not a number in this message.",
+    "Do not keep the request secret; talk it over with someone you trust before acting.",
+    "Be cautious with gift cards, wire transfers, or cryptocurrency; these payments are hard to reverse. Verify the request first.",
+    "Do not send money or share sensitive details until the request is independently verified."
+  ]
+}
+```
+
+### Frontend integration (Denise)
+
+```python
+questionnaire = build_questionnaire(original_analysis)   # original analyzer output
+# Render questionnaire["questions"]; collect answers keyed by each question["id"]
+# with values "yes" / "no" / "unsure".
+feedback = review_questionnaire(questionnaire, answers)
+# Render feedback["headline"], feedback["summary"], feedback["concerns"],
+# feedback["recommended_actions"].
+```
+
+The frontend does not implement question selection, answer interpretation, or scoring.
+Store the questionnaire so the same object (or at least its `id`s) can be passed back to
+`review_questionnaire`; partial answers are fine. Keep these field names exactly.
+
 ## Sources and research integrity
 
 The following pages were checked on **October 10, 2026**. Runtime uses local
@@ -187,7 +323,8 @@ adaptive optimization, or claims of measured effectiveness are implemented.
 
 | Module | Responsibility |
 | --- | --- |
-| `intervention.py` | Public bundle/single-strategy APIs, output checks, legacy adapter |
+| `intervention.py` | Public bundle/single-strategy APIs, questionnaire APIs, output checks, legacy adapter |
+| `interventions/questionnaire.py` | Personalized verification questions and question-aware answer review (additive) |
 | `interventions/__init__.py` | Marks the independent backend package |
 | `interventions/context.py` | Bounded normalization, frozen context/signals, aliases, internal route selection |
 | `interventions/templates.py` | Immutable question/action plans by verification route |
