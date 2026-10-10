@@ -231,11 +231,21 @@ def test_confirmation_corrections_reruns_and_verification(monkeypatch):
     at.button(key="analyze").click().run()
     analyze.assert_called_once_with(corrected)
     assert at.session_state["analysis"]["signals"][0]["evidence"] == "right away"
-    next(b for b in at.button if b.label == "Pause & Verify").click().run()
-    assert at.session_state["stage"] == "verify"
-    at.radio(key="answer_widget").set_value("No, I haven't verified").run()
-    at.button(key="continue").click().run()
+    at.button(key="question_verify").click().run()
+    assert at.session_state["stage"] == "results"
+    at.radio(key="question_answer_independent_contact").set_value("no").run()
     assert at.checkbox
+    at.checkbox(key="action_check_saved_contact").check().run()
+    at.button(key="question_verify").click().run()
+    at.button(key="question_verify").click().run()
+    assert at.radio(key="question_answer_independent_contact").value == "no"
+    assert at.checkbox(key="action_check_saved_contact").value
+    for question in at.session_state["questionnaire_bundle"]["questionnaire"]["questions"]:
+        at.radio(key=f"question_answer_{question['id']}").set_value("not_sure").run()
+    at.button(key="review_answers").click().run()
+    assert at.session_state["questionnaire_feedback"] is not None
+    assert analyze.call_count == 1
+    assert extract.call_count == 1
     next(b for b in at.button if b.label == "Check another message").click().run()
     assert at.session_state["ocr_text"] == ""
     assert at.session_state["ocr_digest"] is None
@@ -304,8 +314,8 @@ def test_real_ocr_through_streamlit(engine, monkeypatch):
     at.button(key="analyze").click().run()
     assert at.session_state["analysis"]["requested_amount"] == "$2,500"
     assert at.session_state["analysis"]["signals"][0]["evidence"] == "right away"
-    next(b for b in at.button if b.label == "Pause & Verify").click().run()
-    assert at.session_state["stage"] == "verify"
+    at.button(key="question_verify").click().run()
+    assert at.session_state["stage"] == "results"
     assert not at.exception
 
 

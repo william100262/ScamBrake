@@ -130,26 +130,23 @@ def test_home_validation_and_examples():
     assert not at.exception
 
 
-@pytest.mark.parametrize("answer", ["No, I haven't verified", "Yes, I verified independently", "I'm not sure"])
+@pytest.mark.parametrize("answer", ["yes", "no", "not_sure"])
 def test_verification_and_restart(answer):
     at = analyzed(app())
-    button(at, "Pause & Verify").click().run()
-    assert at.button(key="continue").disabled
-    at.radio(key="answer_widget").set_value(answer).run()
-    at.button(key="continue").click().run()
-    assert len(at.checkbox) == 3
-    at.checkbox(key="check_0").check().run()
-    assert at.session_state["checklist_completion"][0]
-    button(at, "Back to results").click().run()
-    button(at, "Pause & Verify").click().run()
-    assert at.radio(key="answer_widget").value == answer
-    assert at.checkbox(key="check_0").value
+    at.button(key="question_verify").click().run()
+    assert at.session_state["stage"] == "results"
+    at.radio(key="question_answer_independent_contact").set_value(answer).run()
+    at.checkbox(key="action_check_saved_contact").check().run()
+    at.button(key="question_verify").click().run()
+    assert not any(r.key.startswith("question_answer_") for r in at.radio)
+    at.button(key="question_verify").click().run()
+    assert at.radio(key="question_answer_independent_contact").value == answer
+    assert at.checkbox(key="action_check_saved_contact").value
     button(at, "Check another message").click().run()
     assert at.session_state["analysis"] is None
-    assert at.session_state["verification_answer"] is None
+    assert at.session_state["question_answers"] == {}
     assert at.session_state["checklist_completion"] == {}
     assert at.text_area(key="message").value == ""
-    assert not at.exception
     at.button(key="reminder_example").click().run()
     at.button(key="analyze").click().run()
     assert at.session_state["analysis"]["risk_level"] == "low"

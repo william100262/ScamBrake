@@ -371,10 +371,16 @@ def build_questionnaire(analysis: dict) -> dict:
 
 
 def _answer(answers, qid):
-    """Normalize one answer to 'yes'/'no'/'unsure', or None when absent/invalid."""
+    """Normalize one answer to 'yes'/'no'/'unsure', or None when absent/invalid.
+
+    The frontend transports the unsure option as 'not_sure' (and 'not sure'); both
+    are accepted as aliases for 'unsure' so the UI and backend stay compatible.
+    """
     value = answers.get(qid)
     if isinstance(value, str):
         value = value.strip().lower()
+        if value in {"not_sure", "not sure"}:
+            return "unsure"
         if value in {"yes", "no", "unsure"}:
             return value
     return None

@@ -32,52 +32,10 @@ UNKNOWN = {
     "signals": [], "requested_amount": None, "payment_method": None, "claimed_sender": None,
 }
 
-# Analyzer-shaped (seven-field) fixtures for the TEMPORARY four-card intervention
-# demo. The normalized frontend fixtures above drop `scenario` and use frontend
-# risk words, which the intervention engine cannot route on. These mirror the real
-# analyzer.analyze_input() contract (scenario + analyzer risk words + typed signals)
-# so build_interventions() produces scenario-specific demo cards. Fictional only.
-FAMILY_RAW = {
-    "scenario": "family_emergency", "risk_level": "high",
-    "signals": [
-        {"type": "impersonation", "evidence": "My phone broke and I'm using a new number."},
-        {"type": "urgency", "evidence": "Just send it now."},
-        {"type": "discouraging_verification", "evidence": "Please don't call me."},
-    ],
-    "requested_amount": "$500", "payment_method": "Zelle", "claimed_sender": "Dad",
-    "explanation": "A fictional family-emergency request pressures an immediate payment.",
-}
-REMINDER_RAW = {
-    "scenario": "general", "risk_level": "low", "signals": [],
-    "requested_amount": "$75", "payment_method": None, "claimed_sender": "Tutoring provider",
-    "explanation": "A fictional reminder with little suspicious evidence.",
-}
-MODERATE_RAW = {
-    "scenario": "invoice_fraud", "risk_level": "medium",
-    "signals": [{"type": "changed_payment_details", "evidence": "We have changed our payment details."}],
-    "requested_amount": "$40", "payment_method": "bank transfer", "claimed_sender": "Event organizer",
-    "explanation": "A fictional request changes the stated payment destination.",
-}
-UNKNOWN_RAW = {
-    "scenario": "unknown", "risk_level": "uncertain", "signals": [],
-    "requested_amount": None, "payment_method": None, "claimed_sender": None,
-    "explanation": "This is a generic demo simulation with no analyzed content.",
-}
-
 
 def analyze_input(text="", image_bytes=None, mime_type=None):
     fixtures = {FAMILY_MESSAGE: FAMILY, REMINDER_MESSAGE: REMINDER, MODERATE_MESSAGE: MODERATE}
     return deepcopy(fixtures.get(text.strip(), UNKNOWN))
-
-
-def analyzer_output(text=""):
-    """Analyzer-shaped fixture for the temporary four-card intervention demo.
-
-    Returns the original seven-field analyzer shape (never the normalized output),
-    so the intervention engine receives scenario and typed signals in demo mode.
-    """
-    fixtures = {FAMILY_MESSAGE: FAMILY_RAW, REMINDER_MESSAGE: REMINDER_RAW, MODERATE_MESSAGE: MODERATE_RAW}
-    return deepcopy(fixtures.get(text.strip(), UNKNOWN_RAW))
 
 
 def build_intervention(analysis):

@@ -36,7 +36,7 @@ def no_network(monkeypatch, request):
     def connect(sock, address):
         # Windows asyncio implements its internal socketpair using loopback.
         # Allow that only for the UI harness; pure backend tests block all sockets.
-        if request.node.name == "test_live_pause_verify_with_default_adapter" and address[0] == "127.0.0.1":
+        if request.node.name == "test_live_inline_verification_with_default_backend" and address[0] == "127.0.0.1":
             return original_connect(sock, address)
         return fail(address)
 
@@ -288,7 +288,9 @@ def test_current_integration_loads_backend_without_ui_edits(monkeypatch):
     raw = EXAMPLES["bank_impersonation"]
     assert integration.build_intervention(raw, demo=False) == build_intervention(raw)
     ui_analysis = integration.normalize_analysis(integration._adapt_analyzer_output(raw))
-    assert "scenario" not in ui_analysis
+    # The integrated frontend now PRESERVES scenario in the normalized result so
+    # deterministic consumers keep full context (it previously dropped it).
+    assert ui_analysis["scenario"] == "bank_impersonation"
     assert integration.build_intervention(ui_analysis, demo=False)["recommended_actions"]
 
 
@@ -311,24 +313,35 @@ def test_generation_does_not_call_analyzer(monkeypatch):
     fail.assert_not_called()
 
 
-def test_live_pause_verify_with_default_adapter(monkeypatch):
+def test_live_inline_verification_with_default_backend(monkeypatch):
+    # The inline verification flow (new frontend) must drive the real backend:
+    # my build_questionnaire for the questions and review_questionnaire for the
+    # feedback, with no additional analyzer call when answering.
     import analyzer
     from streamlit.testing.v1 import AppTest
     monkeypatch.setenv("SCAMBRAKE_DEMO_MODE", "false")
     monkeypatch.delenv("SCAMBRAKE_ANALYZER_MODULE", raising=False)
     monkeypatch.delenv("SCAMBRAKE_INTERVENTION_MODULE", raising=False)
-    monkeypatch.setattr(analyzer, "analyze_input", lambda text: deepcopy(EXAMPLES["family_emergency"]))
+    analyze = Mock(side_effect=lambda text: deepcopy(EXAMPLES["family_emergency"]))
+    monkeypatch.setattr(analyzer, "analyze_input", analyze)
     at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=20).run()
     at.text_area(key="message").set_value("Fictional example for adapter testing.").run()
     at.button(key="analyze").click().run()
     assert at.session_state["stage"] == "results"
-    next(b for b in at.button if b.label == "Pause & Verify").click().run()
-    assert at.session_state["stage"] == "verify"
-    at.radio(key="answer_widget").set_value("No, I haven't verified").run()
-    at.button(key="continue").click().run()
+    # Inline checklist from the deterministic companion is available immediately.
     assert len(at.checkbox) >= 3
-    at.checkbox(key="check_0").check().run()
-    assert at.session_state["checklist_completion"][0]
+    at.button(key="question_verify").click().run()
+    bundle = at.session_state["questionnaire_bundle"]
+    assert not bundle["mock"] and bundle["provider"] == "intervention"
+    questions = bundle["questionnaire"]["questions"]
+    assert 3 <= len(questions) <= 5
+    for question in questions:
+        at.radio(key=f"question_answer_{question['id']}").set_value("not_sure").run()
+    at.button(key="review_answers").click().run()
+    feedback = at.session_state["questionnaire_feedback"]
+    assert feedback and feedback["recommended_actions"]
+    assert analyze.call_count == 1
+    assert at.session_state["stage"] == "results"
     assert not at.exception
 
 
