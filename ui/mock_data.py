@@ -28,16 +28,12 @@ MODERATE = {
 }
 UNKNOWN = {
     "risk_level": "unknown",
-    "summary": "This is a generic demo simulation. Your submitted content has not been analyzed by AI. Live analysis requires the Gemini integration.",
+    "summary": "This is a generic demo simulation. Your submitted content has not been analyzed by AI. Live analysis requires Gemini or LM Studio.",
     "signals": [], "requested_amount": None, "payment_method": None, "claimed_sender": None,
 }
 
 
 def analyze_input(text="", image_bytes=None, mime_type=None):
-    if image_bytes is not None:
-        result = deepcopy(UNKNOWN)
-        result["summary"] = "Screenshot demo: the image was validated and previewed, but its text has not been read or analyzed. Connect Gemini for live screenshot analysis."
-        return result
     fixtures = {FAMILY_MESSAGE: FAMILY, REMINDER_MESSAGE: REMINDER, MODERATE_MESSAGE: MODERATE}
     return deepcopy(fixtures.get(text.strip(), UNKNOWN))
 

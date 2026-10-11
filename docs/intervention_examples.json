@@ -1,0 +1,314 @@
+{
+  "family_emergency": {
+    "analysis": {
+      "scenario": "family_emergency",
+      "risk_level": "high",
+      "signals": [
+        {
+          "type": "urgency",
+          "evidence": "right away"
+        },
+        {
+          "type": "secrecy_demand",
+          "evidence": "don't tell anyone"
+        },
+        {
+          "type": "suspicious_payment",
+          "evidence": "Apple gift cards"
+        }
+      ],
+      "requested_amount": "$2,500",
+      "payment_method": "Apple gift cards",
+      "claimed_sender": "grandson Jake",
+      "explanation": "A fictional claim of a grandson in jail asks for an urgent payment and secrecy."
+    },
+    "result": {
+      "scenario": "family_emergency",
+      "risk_level": "high",
+      "interventions": {
+        "questioning": {
+          "title": "Pause and Think",
+          "message": "Have you contacted your family member using a phone number you trusted before receiving this message?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "Yes, I verified independently"
+            },
+            {
+              "id": "no",
+              "label": "No, I haven't verified"
+            },
+            {
+              "id": "unsure",
+              "label": "I'm not sure"
+            }
+          ]
+        },
+        "authority": {
+          "title": "What Experts Recommend",
+          "message": "FTC guidance recommends checking a claimed family emergency by contacting the person through a known number and asking another trusted family member. This is general advice, not an assessment of this particular message by the institution.",
+          "source": {
+            "name": "Federal Trade Commission",
+            "label": "Scammers Use Fake Emergencies To Steal Your Money",
+            "url": "https://consumer.ftc.gov/articles/scammers-use-fake-emergencies-steal-your-money"
+          }
+        },
+        "social_influence": {
+          "title": "Recognize the Scam Pattern",
+          "message": "Documented family-emergency scams involve someone posing as a relative who needs help. The scenario identified by the analysis warrants checking that possibility. Pressure to act quickly is a documented scam tactic. Requests for secrecy can discourage independent checks in documented emergency scams. Requests to pay with gift cards resemble a documented scam payment pattern. The payment-related concern in the analysis is a reason to independently check the recipient and payment method. These similarities do not establish that fraud occurred.",
+          "matched_signals": [
+            "urgency",
+            "secrecy_demand",
+            "suspicious_payment"
+          ]
+        },
+        "diversion": {
+          "title": "Take a Safer Step",
+          "message": "Check the claimed emergency through family contacts you already trust before deciding whether to pay.",
+          "actions": [
+            {
+              "id": "call_relative",
+              "label": "Call the family member using a previously saved phone number."
+            },
+            {
+              "id": "confirm_family",
+              "label": "Ask another trusted family member to help check the story."
+            },
+            {
+              "id": "pause_payment",
+              "label": "Wait to send money until you have independently checked the request."
+            },
+            {
+              "id": "protect_gift_card_codes",
+              "label": "Do not share gift card numbers or PINs in response to this request. Verify it independently first."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "bank_impersonation": {
+    "analysis": {
+      "scenario": "bank_impersonation",
+      "risk_level": "high",
+      "signals": [
+        {
+          "type": "account_threat",
+          "evidence": "your account will be frozen"
+        },
+        {
+          "type": "suspicious_link",
+          "evidence": "click https://bank-alert.example.invalid"
+        }
+      ],
+      "requested_amount": null,
+      "payment_method": null,
+      "claimed_sender": "Example Bank",
+      "explanation": "A fictional bank warning threatens an account freeze and asks the recipient to follow a link."
+    },
+    "result": {
+      "scenario": "bank_impersonation",
+      "risk_level": "high",
+      "interventions": {
+        "questioning": {
+          "title": "Pause and Think",
+          "message": "Have you checked this request through your bank's official app or the number printed on your bank card?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "Yes, I verified independently"
+            },
+            {
+              "id": "no",
+              "label": "No, I haven't verified"
+            },
+            {
+              "id": "unsure",
+              "label": "I'm not sure"
+            }
+          ]
+        },
+        "authority": {
+          "title": "What Experts Recommend",
+          "message": "FTC guidance recommends checking a message with the organization through a phone number or website you already trust, instead of contact details supplied in the message. This is general advice, not an assessment of this particular message by the institution.",
+          "source": {
+            "name": "Federal Trade Commission",
+            "label": "How To Recognize and Avoid Phishing Scams",
+            "url": "https://consumer.ftc.gov/articles/how-recognize-avoid-phishing-scams"
+          }
+        },
+        "social_influence": {
+          "title": "Recognize the Scam Pattern",
+          "message": "Documented bank-impersonation messages pose as a bank to gain trust. The scenario identified by the analysis warrants checking the sender independently. Threats of adverse consequences can be used to pressure recipients in scams. Links identified in the analysis can resemble phishing attempts that steer recipients to an unverified channel. These similarities do not establish that fraud occurred.",
+          "matched_signals": [
+            "account_threat",
+            "suspicious_link"
+          ]
+        },
+        "diversion": {
+          "title": "Take a Safer Step",
+          "message": "Check the request directly with your bank using an established channel.",
+          "actions": [
+            {
+              "id": "open_bank_app",
+              "label": "Open your bank's official app independently and check for the request."
+            },
+            {
+              "id": "call_bank",
+              "label": "Call the number printed on your bank card."
+            },
+            {
+              "id": "use_known_contact",
+              "label": "Use established bank contact details instead of any details supplied with the request."
+            },
+            {
+              "id": "avoid_link",
+              "label": "Leave the message's link unopened; check the request through an official channel you open independently."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "invoice_fraud": {
+    "analysis": {
+      "scenario": "invoice_fraud",
+      "risk_level": "medium",
+      "signals": [
+        {
+          "type": "changed_payment_details",
+          "evidence": "pay into our new bank account"
+        }
+      ],
+      "requested_amount": "$850",
+      "payment_method": "bank transfer",
+      "claimed_sender": "Example Supplies",
+      "explanation": "A fictional supplier request changes the payment destination."
+    },
+    "result": {
+      "scenario": "invoice_fraud",
+      "risk_level": "medium",
+      "interventions": {
+        "questioning": {
+          "title": "Pause and Think",
+          "message": "Have you confirmed the changed payment details with your usual contact at the supplier?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "Yes, I verified independently"
+            },
+            {
+              "id": "no",
+              "label": "No, I haven't verified"
+            },
+            {
+              "id": "unsure",
+              "label": "I'm not sure"
+            }
+          ]
+        },
+        "authority": {
+          "title": "What Experts Recommend",
+          "message": "FBI guidance recommends verifying payment requests and changes to account numbers or payment procedures directly with the known contact. This is general advice, not an assessment of this particular message by the institution.",
+          "source": {
+            "name": "Federal Bureau of Investigation",
+            "label": "Business Email Compromise",
+            "url": "https://www.fbi.gov/how-we-can-help-you/common-frauds-and-scams/business-email-compromise"
+          }
+        },
+        "social_influence": {
+          "title": "Recognize the Scam Pattern",
+          "message": "Documented invoice scams can imitate a supplier's request. The invoice-fraud classification warrants checking that possibility. Unexpected changes in payment instructions resemble a documented invoice-redirection tactic. These similarities do not establish that fraud occurred.",
+          "matched_signals": [
+            "changed_payment_details"
+          ]
+        },
+        "diversion": {
+          "title": "Take a Safer Step",
+          "message": "Confirm the invoice and intended recipient with the supplier through an established contact.",
+          "actions": [
+            {
+              "id": "contact_supplier",
+              "label": "Call your usual supplier contact using a previously established number."
+            },
+            {
+              "id": "confirm_payment_details",
+              "label": "Confirm the changed banking details with your usual supplier contact before paying."
+            },
+            {
+              "id": "pause_payment",
+              "label": "Wait to make the payment until those details have been independently checked."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "ambiguous_request": {
+    "analysis": {
+      "scenario": "general",
+      "risk_level": "low",
+      "signals": [],
+      "requested_amount": "$20",
+      "payment_method": null,
+      "claimed_sender": "Alex",
+      "explanation": "A fictional reminder with little suspicious evidence."
+    },
+    "result": {
+      "scenario": "general",
+      "risk_level": "low",
+      "interventions": {
+        "questioning": {
+          "title": "Pause and Think",
+          "message": "Have you independently verified the identity of the sender and the request?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "Yes, I verified independently"
+            },
+            {
+              "id": "no",
+              "label": "No, I haven't verified"
+            },
+            {
+              "id": "unsure",
+              "label": "I'm not sure"
+            }
+          ]
+        },
+        "authority": {
+          "title": "What Experts Recommend",
+          "message": "FTC guidance recommends checking requests using contact information obtained independently and taking time to consider a request before acting. This is general advice, not an assessment of this particular message by the institution.",
+          "source": {
+            "name": "Federal Trade Commission",
+            "label": "How To Avoid a Scam",
+            "url": "https://consumer.ftc.gov/articles/how-avoid-scam"
+          }
+        },
+        "social_influence": {
+          "title": "Recognize the Scam Pattern",
+          "message": "The available analysis does not establish a matching scam pattern. You can clarify the request through an independent contact.",
+          "matched_signals": []
+        },
+        "diversion": {
+          "title": "Take a Safer Step",
+          "message": "An independent check can clarify the request. ScamBrake has not verified it for you.",
+          "actions": [
+            {
+              "id": "verify_sender",
+              "label": "Contact the sender using previously trusted contact information."
+            },
+            {
+              "id": "confirm_request",
+              "label": "Confirm what is being requested and why through that independent channel."
+            },
+            {
+              "id": "protect_information",
+              "label": "Before sending money or sensitive information, independently verify the request. Never share passwords or verification codes."
+            }
+          ]
+        }
+      }
+    }
+  }
+}
