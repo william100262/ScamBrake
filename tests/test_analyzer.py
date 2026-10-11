@@ -1,7 +1,7 @@
-"""Tests for analyzer.py's Mistral integration, parsing, and error handling.
+"""Tests for analyzer.py's Gemini integration, parsing, and error handling.
 
-No real API calls are made: the Mistral client factory is replaced with a fake,
-so these run without the mistralai package installed and without a network.
+No real API calls are made: the Gemini client factory is replaced with a fake,
+so these run without the google-genai package installed and without a network.
 Written to run under either `pytest` or `python -m unittest`.
 """
 
@@ -23,37 +23,35 @@ MESSAGE = (
 )
 
 
-def _mistral_response(content):
-    """Build a fake object shaped like a Mistral chat.complete() response."""
-    message = SimpleNamespace(content=content)
-    choice = SimpleNamespace(message=message)
-    return SimpleNamespace(choices=[choice])
+def _gemini_response(content):
+    """Build a fake object shaped like a Gemini models.generate_content() response."""
+    return SimpleNamespace(text=content)
 
 
 def _fake_client(content=None, exc=None):
-    """A stand-in Mistral client whose chat.complete returns content or raises."""
+    """A stand-in Gemini client whose models.generate_content returns content or raises."""
 
     def complete(**kwargs):
         if exc is not None:
             raise exc
-        return _mistral_response(content)
+        return _gemini_response(content)
 
-    return SimpleNamespace(chat=SimpleNamespace(complete=complete))
+    return SimpleNamespace(models=SimpleNamespace(generate_content=complete), close=mock.Mock())
 
 
-class MistralProviderTests(unittest.TestCase):
+class GeminiProviderTests(unittest.TestCase):
     def setUp(self):
-        # Force the Mistral provider with a dummy key for every test here.
+        # Force the Gemini provider with a dummy key for every test here.
         env = mock.patch.dict(
             analyzer.os.environ,
-            {"SCAMBRAKE_AI_PROVIDER": "mistral", "MISTRAL_API_KEY": "test-key"},
+            {"SCAMBRAKE_AI_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"},
         )
         env.start()
         self.addCleanup(env.stop)
 
     def _patch_client(self, **kwargs):
         patcher = mock.patch.object(
-            analyzer, "_mistral_client", return_value=_fake_client(**kwargs)
+            analyzer, "_gemini_client", return_value=_fake_client(**kwargs)
         )
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -139,17 +137,17 @@ class MistralProviderTests(unittest.TestCase):
 
         self.assertEqual(result["scenario"], "unknown")
         self.assertEqual(result["risk_level"], "uncertain")
-        self.assertIn("Mistral API request failed", result["explanation"])
+        self.assertIn("Gemini API request failed", result["explanation"])
         # The raw exception text must not leak through verbatim.
         self.assertNotIn("503 service unavailable", result["explanation"])
 
     def test_missing_api_key_reports_clearly(self):
         with mock.patch.dict(
-            analyzer.os.environ, {"MISTRAL_API_KEY": ""}, clear=False
+            analyzer.os.environ, {"GEMINI_API_KEY": ""}, clear=False
         ):
             # Real factory (not patched) so the key check runs.
             result = analyzer.analyze_input(MESSAGE)
-        self.assertIn("MISTRAL_API_KEY", result["explanation"])
+        self.assertIn("GEMINI_API_KEY", result["explanation"])
 
 
 class EmptyInputTests(unittest.TestCase):
@@ -165,18 +163,18 @@ class ProviderSelectionTests(unittest.TestCase):
         with mock.patch.dict(analyzer.os.environ, env, clear=True):
             return analyzer._select_provider()
 
-    def test_defaults_to_mistral_when_key_present(self):
-        self.assertEqual(self._select({"MISTRAL_API_KEY": "k"}), "mistral")
+    def test_defaults_to_gemini_when_key_present(self):
+        self.assertEqual(self._select({"GEMINI_API_KEY": "k"}), "gemini")
 
     def test_defaults_to_lmstudio_without_key(self):
         self.assertEqual(self._select({}), "lmstudio")
 
     def test_explicit_lmstudio_overrides_key(self):
-        env = {"MISTRAL_API_KEY": "k", "SCAMBRAKE_AI_PROVIDER": "lmstudio"}
+        env = {"GEMINI_API_KEY": "k", "SCAMBRAKE_AI_PROVIDER": "lmstudio"}
         self.assertEqual(self._select(env), "lmstudio")
 
-    def test_explicit_mistral(self):
-        self.assertEqual(self._select({"SCAMBRAKE_AI_PROVIDER": "mistral"}), "mistral")
+    def test_explicit_gemini(self):
+        self.assertEqual(self._select({"SCAMBRAKE_AI_PROVIDER": "gemini"}), "gemini")
 
 
 if __name__ == "__main__":

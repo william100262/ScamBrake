@@ -109,9 +109,9 @@ to UI `moderate`/`unknown`. Exact evidence and payment details must occur in the
 submitted text; OCR mistakes are never silently corrected into fabricated quotes.
 
 Set `SCAMBRAKE_DEMO_MODE=false` for real analysis. Select
-`SCAMBRAKE_AI_PROVIDER=mistral` or `lmstudio`; absent an explicit selection,
-the analyzer uses Mistral when `MISTRAL_API_KEY` is set, otherwise LM Studio.
-Mistral uses `MISTRAL_MODEL` when configured. LM Studio uses the existing local
+`SCAMBRAKE_AI_PROVIDER=gemini` or `lmstudio`; absent an explicit selection,
+the analyzer uses Gemini when `GEMINI_API_KEY` is set, otherwise LM Studio.
+Gemini uses `GEMINI_MODEL` when configured. LM Studio uses the existing local
 endpoint `http://localhost:1235/api/v1/chat` and model `qwen/qwen3.5-9b`.
 Both providers receive text only. No vision model or second API key is needed.
 Screenshots are not sent to either provider. Provider failures produce an
@@ -210,7 +210,7 @@ $env:SCAMBRAKE_DEMO_MODE = "false"
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-For Mistral, set `MISTRAL_API_KEY` in your local `.env`. Never commit that file.
+For Gemini, set `GEMINI_API_KEY` in your local `.env`. Never commit that file.
 For a fully local workflow, run the configured LM Studio server and set
 `$env:SCAMBRAKE_AI_PROVIDER = "lmstudio"` before launching. The app defaults to
 demo mode when `SCAMBRAKE_DEMO_MODE` is absent from both the environment and
@@ -273,7 +273,7 @@ provider retention policies apply to confirmed text sent for analysis.
 
 The screenshot suite includes real synthetic PNG/JPEG/WebP extraction and blank,
 dark, and EXIF cases, validation limits, safe failures, literal OCR preservation,
-mocked Mistral/LM Studio calls, corrected-text submission, reruns, retry, replacement,
+mocked Gemini/LM Studio calls, corrected-text submission, reruns, retry, replacement,
 removal, and Pause & Verify. Real-engine tests explicitly skip if Tesseract is
 absent. External AI calls are mocked. AppTest injects uploads because its public
 API does not support selecting files. These tests do not prove live API acceptance
@@ -343,3 +343,32 @@ the preview. Verify no analysis occurs until you type a message and confirm it.
 The original two images are not included in the repository; real-engine tests use
 synthetic bank alerts, short messages, generated noise, and attributed photographs
 in `tests/fixtures/ocr`. External AI requests remain mocked.
+
+### Gemini provider configuration
+
+Install dependencies with `python -m pip install -r requirements.txt`.
+ScamBrake uses the official `google-genai` SDK:
+
+```dotenv
+SCAMBRAKE_AI_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Update your local configuration yourself; do not overwrite an existing `.env`
+with the example or commit credentials. When migrating from Mistral, replace
+the old provider selection and key/model variable names with those above.
+The model defaults to `gemini-2.5-flash` when unset or blank. Explicit
+`SCAMBRAKE_AI_PROVIDER=lmstudio` continues to use the local server.
+
+Requests use JSON output, temperature zero, and a 60-second per-request timeout.
+Thinking is disabled for the default Flash model to reserve the 1,024-token
+output budget for the answer. Model overrides must support these options.
+Rate limits and transient server errors receive up to three attempts with
+backoff; authentication and other permanent errors are not retried.
+Empty/blocked, malformed, and failed responses return the existing seven-field
+uncertain result. Exact-substring evidence validation still runs locally.
+Only confirmed message text is submitted; screenshot OCR stays local.
+Tests mock Gemini requests and do not validate live credentials or model access.
+
+SDK reference: https://googleapis.github.io/python-genai/

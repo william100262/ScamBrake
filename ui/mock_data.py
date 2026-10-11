@@ -28,7 +28,7 @@ MODERATE = {
 }
 UNKNOWN = {
     "risk_level": "unknown",
-    "summary": "This is a generic demo simulation. Your submitted content has not been analyzed by AI. Live analysis requires Mistral or LM Studio.",
+    "summary": "This is a generic demo simulation. Your submitted content has not been analyzed by AI. Live analysis requires Gemini or LM Studio.",
     "signals": [], "requested_amount": None, "payment_method": None, "claimed_sender": None,
 }
 

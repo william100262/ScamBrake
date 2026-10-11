@@ -105,7 +105,7 @@ git --work-tree="C:\Users\willi\Desktop\ScamBrake Merge" diff --check
 
 Final results: **131 passed, 20 skipped** in 27.23 seconds; no broken dependencies;
 no whitespace errors. Skips require a native Tesseract executable. Provider tests
-use mocked responses and make no real Mistral requests. Coverage includes scenario
+use mocked responses and make no real Gemini requests. Coverage includes scenario
 selection, IRS guidance, original analyzer fields, neutral/link handling, native
 card separation, inline answers, collapse persistence, message reset, text and
 mocked screenshot workflows, and no extra analyzer/OCR calls during interaction.

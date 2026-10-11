@@ -148,14 +148,14 @@ def test_safe_engine_errors(monkeypatch, kind):
     assert not ocr._ENGINE_LOCK.locked()
 
 
-@pytest.mark.parametrize("provider", ["mistral", "lmstudio"])
+@pytest.mark.parametrize("provider", ["gemini", "lmstudio"])
 def test_real_ocr_to_mocked_provider(engine, monkeypatch, provider):
     text = integration.extract_screenshot(screenshot(), "screen.png")
     monkeypatch.setenv("SCAMBRAKE_AI_PROVIDER", provider)
     monkeypatch.delenv("SCAMBRAKE_ANALYZER_MODULE", raising=False)
-    if provider == "mistral":
-        complete = Mock(return_value=SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(PAYLOAD)))]))
-        monkeypatch.setattr(analyzer, "_mistral_client", lambda: SimpleNamespace(chat=SimpleNamespace(complete=complete)))
+    if provider == "gemini":
+        complete = Mock(return_value=SimpleNamespace(text=json.dumps(PAYLOAD)))
+        monkeypatch.setattr(analyzer, "_gemini_client", lambda: SimpleNamespace(models=SimpleNamespace(generate_content=complete), close=Mock()))
     else:
         response = Mock()
         response.__enter__ = Mock(return_value=response)
@@ -168,10 +168,9 @@ def test_real_ocr_to_mocked_provider(engine, monkeypatch, provider):
     assert result["payment_method"] == "Apple gift cards"
     assert result["claimed_sender"] == "Jake"
     assert result["signals"][0]["evidence"] == "right away"
-    if provider == "mistral":
-        messages = complete.call_args.kwargs["messages"]
-        assert messages[0]["role"] == "system"
-        assert text in messages[1]["content"]
+    if provider == "gemini":
+        assert complete.call_args.kwargs["config"]["system_instruction"] == analyzer.INSTRUCTIONS
+        assert text in complete.call_args.kwargs["contents"]
     else:
         body = json.loads(urlopen.call_args.args[0].data)
         assert text in body["input"]
@@ -321,13 +320,13 @@ def test_real_ocr_through_streamlit(engine, monkeypatch):
 
 def test_rate_limit_safe_retry(monkeypatch):
     class RateLimit(Exception):
-        status_code = 429
+        code = 429
     complete = Mock(side_effect=RateLimit("PRIVATE"))
-    monkeypatch.setenv("SCAMBRAKE_AI_PROVIDER", "mistral")
-    monkeypatch.setattr(analyzer, "_mistral_client", lambda: SimpleNamespace(chat=SimpleNamespace(complete=complete)))
+    monkeypatch.setenv("SCAMBRAKE_AI_PROVIDER", "gemini")
+    monkeypatch.setattr(analyzer, "_gemini_client", lambda: SimpleNamespace(models=SimpleNamespace(generate_content=complete), close=Mock()))
     monkeypatch.setattr(analyzer.time, "sleep", lambda seconds: None)
     result = analyzer.analyze_input(MESSAGE)
-    assert complete.call_count == analyzer.MISTRAL_MAX_ATTEMPTS
+    assert complete.call_count == analyzer.GEMINI_MAX_ATTEMPTS
     assert "rate limiting" in result["explanation"]
     assert "PRIVATE" not in result["explanation"]
 

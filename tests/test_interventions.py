@@ -346,7 +346,7 @@ def test_live_inline_verification_with_default_backend(monkeypatch):
 
 
 def test_engine_imports_with_standard_library_only():
-    # -S excludes site packages: no Streamlit, dotenv, Mistral or OCR dependency.
+    # -S excludes site packages: no Streamlit, dotenv, Gemini or OCR dependency.
     code = "import intervention, json, sys; json.dumps(intervention.build_interventions({})); assert 'analyzer' not in sys.modules; assert 'streamlit' not in sys.modules"
     result = subprocess.run([sys.executable, "-S", "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stderr
