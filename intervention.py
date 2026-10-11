@@ -1,42 +1,130 @@
-"""Frontend-independent intervention API and the existing Pause & Verify adapter."""
-from interventions.context import normalize
-from interventions.contract import validate_bundle, validate_strategy
-from interventions.questionnaire import build_questionnaire, review_questionnaire
-from interventions.registry import STRATEGIES, build_strategy as _build_strategy
+VERIFICATION_QUESTIONS = {
+    "family_emergency": [
+        "Can you call your family member using a number you already know?",
+        "Can another trusted family member confirm the emergency?"
+    ],
 
-__all__ = ["build_interventions", "build_strategy", "build_intervention",
-           "build_questionnaire", "review_questionnaire"]
+    "bank_impersonation": [
+        "Have you contacted your bank using the number on your card?",
+        "Did you verify the request directly with your bank?"
+    ],
 
+    
+    
+    "invoice_fraud": [
+        "Were you expecting this invoice?",
+        "Can you confirm the invoice with the company using its official contact information?"
+    ],
 
-def build_interventions(analysis: dict) -> dict:
-    """Return all four cards in Denise's agreed schema; never mutate analysis."""
-    context = normalize(analysis)
-    result = {"scenario": context.scenario, "risk_level": context.risk_level,
-              "interventions": {name: factory(analysis) for name, factory in STRATEGIES.items()}}
-    validate_bundle(result)
-    return result
+    "suspicious_payment": [
+        "Do you recognize the person requesting this payment?",
+        "Can you verify the payment request through another trusted method?"
+    ],
 
+    "general": [
+        "Do you recognize the sender?",
+        "Can you independently verify the information?"
+    ],
 
-def build_strategy(strategy: str, analysis: dict) -> dict:
-    """Return one card. Unknown strategy names raise a fixed, safe ValueError."""
-    result = _build_strategy(strategy, analysis)
-    validate_strategy(strategy, result)
-    return result
+    "unknown": [
+        "Can you verify the sender's identity through a trusted channel?",
+        "Does this message ask you to send money or share personal information?"
+    ]
+    
+    
+}
 
+SAFE_ACTIONS = {
+    "family_emergency": [
+        "Do not send money until you verify the emergency.",
+        "Call your family member using a trusted phone number."
+    ],
 
-def build_intervention(analysis: dict) -> dict:
-    """Legacy question/context/action-list shape, including UI risk aliases.
+    "bank_impersonation": [
+        "Do not share your password or verification codes.",
+        "Contact your bank using its official phone number."
+    ],
 
-    The old UI drops scenario. Do not guess it from names or free-form prose.
-    Signals still support general verification; Denise should pass raw analyzer
-    output to build_interventions for full scenario-specific cards.
-    """
-    raw = analysis if isinstance(analysis, dict) else {}
-    adapted = {key: raw.get(key) for key in ("scenario", "risk_level", "signals", "requested_amount", "payment_method", "claimed_sender", "explanation")}
-    risk = adapted["risk_level"]
-    if isinstance(risk, str):
-        adapted["risk_level"] = {"moderate": "medium", "unknown": "uncertain"}.get(risk, risk)
-    cards = build_interventions(adapted)["interventions"]
-    return {"question": cards["questioning"]["message"],
-            "context": cards["diversion"]["message"],
-            "recommended_actions": [action["label"] for action in cards["diversion"]["actions"]]}
+    "invoice_fraud": [
+        "Do not pay the invoice until you confirm it is legitimate.",
+        "Contact the company using contact information you already trust."
+    ],
+
+    "suspicious_payment": [
+        "Do not send money until you verify who is requesting it.",
+        "Avoid clicking payment links in suspicious messages."
+    ],
+
+    "general": [
+        "Do not click suspicious links or share personal information.",
+        "Verify the sender through an independent trusted source."
+    ],
+
+    "unknown": [
+        "Pause before sending money or sharing personal information.",
+        "Contact the sender through a trusted channel to confirm the request."
+    ]
+}
+
+def get_verification_questions(analysis):
+
+    scenario = analysis.get("scenario", "unknown")
+
+    if scenario in VERIFICATION_QUESTIONS:
+        return VERIFICATION_QUESTIONS[scenario]
+
+    return [
+        "Can you verify this request through a trusted source?"
+    ]
+
+def get_safe_actions(analysis):
+
+    scenario = analysis.get("scenario", "unknown")
+
+    if scenario in SAFE_ACTIONS:
+        return SAFE_ACTIONS[scenario]
+
+    return [
+        "Do not send money or share sensitive information until you verify the request."
+    ]
+
+def build_intervention(analysis):
+
+    questions = get_verification_questions(analysis)
+    actions = get_safe_actions(analysis)
+
+    return {
+        "verification_questions": questions,
+        "safe_actions": actions
+    }
+
+# test code 1 function
+if __name__ == "__main__":
+
+    scenarios = [
+        "family_emergency",
+        "bank_impersonation",
+        "invoice_fraud",
+        "suspicious_payment",
+        "general",
+        "unknown"
+    ]
+
+    for scenario in scenarios:
+
+        example = {
+            "scenario": scenario,
+            "risk_level": "medium"
+        }
+
+        result = build_intervention(example)
+
+        print(f"\nScenario: {scenario}")
+
+        print("Verification Questions:")
+        for question in result["verification_questions"]:
+            print("-", question)
+
+        print("Safe Actions:")
+        for action in result["safe_actions"]:
+            print("-", action)
